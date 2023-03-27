@@ -5,8 +5,7 @@ import asyncio
 import logging
 from typing import Any
 
-from discovery30303 import AIODiscovery30303, Device30303
-
+from discovery30303 import MODEL_450, MODEL_550, AIODiscovery30303, Device30303
 from homeassistant import config_entries
 from homeassistant.components import network
 from homeassistant.const import CONF_MODEL, CONF_NAME
@@ -19,16 +18,10 @@ from .const import DISCOVER_SCAN_TIMEOUT, DISCOVERY, DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
-MODEL_450_HOSTNAME_PREFIX = "MY450-"
-MODEL_550_HOSTNAME_PREFIX = "MY550-"
-
-
 @callback
 def async_is_steamist_device(device: Device30303) -> bool:
     """Check if a 30303 discovery is a steamist device."""
-    return device.hostname.startswith(
-        MODEL_450_HOSTNAME_PREFIX
-    ) or device.hostname.startswith(MODEL_550_HOSTNAME_PREFIX)
+    return device.model in [MODEL_450, MODEL_550]
 
 
 @callback
@@ -45,7 +38,7 @@ def async_update_entry_from_discovery(
     if not entry.data.get(CONF_NAME) or is_ip_address(entry.data[CONF_NAME]):
         updates["title"] = data_updates[CONF_NAME] = device.name
     if not entry.data.get(CONF_MODEL) and "-" in device.hostname:
-        data_updates[CONF_MODEL] = device.hostname.split("-", maxsplit=1)[0]
+        data_updates[CONF_MODEL] = device.model
     if data_updates:
         updates["data"] = {**entry.data, **data_updates}
     if updates:

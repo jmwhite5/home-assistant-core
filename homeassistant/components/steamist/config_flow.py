@@ -1,13 +1,14 @@
 """Config flow for Steamist integration."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
-from aiosteamist import Steamist
-from discovery30303 import Device30303, normalize_mac
 import voluptuous as vol
 
+from aiosteamist import SteamistModel450
+from discovery30303 import AIODiscovery30303, Device30303, normalize_mac
 from homeassistant import config_entries
 from homeassistant.components import dhcp
 from homeassistant.const import CONF_DEVICE, CONF_HOST, CONF_MODEL, CONF_NAME
@@ -112,8 +113,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Create a config entry from a device."""
         self._async_abort_entries_match({CONF_HOST: device.ipaddress})
         data = {CONF_HOST: device.ipaddress, CONF_NAME: device.name}
-        if device.hostname:
-            data[CONF_MODEL] = device.hostname.split("-", maxsplit=1)[0]
+        data[CONF_MODEL] = device.model
         return self.async_create_entry(
             title=device.name,
             data=data,
@@ -158,12 +158,25 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
-            if not (host := user_input[CONF_HOST]):
+            host = user_input[CONF_HOST]
+            if not (host):
                 return await self.async_step_pick_device()
             websession = async_get_clientsession(self.hass)
             try:
-                await Steamist(host, websession).async_get_status()
+                await SteamistModel450(host, websession).async_get_status()
             except CONNECTION_EXCEPTIONS:
+                # It may be a 550 model.
+                scanner = AIODiscovery30303()
+                task = asyncio.ensure_future(
+                    scanner.async_scan(timeout=5, address=host)
+                )
+                await task
+                if len(scanner.found_devices) > 0:
+                    if discovery := await async_discover_device(self.hass, host):
+                        return self._async_create_entry_from_device(discovery)
+                    self._async_abort_entries_match({CONF_HOST: host})
+                    return self.async_create_entry(title=host, data=user_input)
+
                 errors["base"] = "cannot_connect"
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("Unexpected exception")

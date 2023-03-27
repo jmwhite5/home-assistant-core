@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from aiosteamist import SteamistModel450
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -26,7 +27,10 @@ async def async_setup_entry(
     coordinator: SteamistDataUpdateCoordinator = hass.data[DOMAIN][
         config_entry.entry_id
     ]
-    async_add_entities([SteamistSwitchEntity(coordinator, config_entry, ACTIVE_SWITCH)])
+    if config_entry.data["model"] == SteamistModel450.model():
+        async_add_entities(
+            [SteamistSwitchEntity(coordinator, config_entry, ACTIVE_SWITCH)]
+        )
 
 
 class SteamistSwitchEntity(SteamistEntity, SwitchEntity):

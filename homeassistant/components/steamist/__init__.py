@@ -5,7 +5,6 @@ from datetime import timedelta
 from typing import Any
 
 from aiosteamist import Steamist
-
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_NAME, Platform
 from homeassistant.core import HomeAssistant
@@ -23,7 +22,7 @@ from .discovery import (
     async_update_entry_from_discovery,
 )
 
-PLATFORMS: list[str] = [Platform.SENSOR, Platform.SWITCH]
+PLATFORMS: list[str] = [Platform.SENSOR, Platform.SWITCH, Platform.BINARY_SENSOR]
 DISCOVERY_INTERVAL = timedelta(minutes=15)
 
 
@@ -47,7 +46,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     host = entry.data[CONF_HOST]
     coordinator = SteamistDataUpdateCoordinator(
         hass,
-        Steamist(host, async_get_clientsession(hass)),
+        Steamist.create_steamist_from(
+            host, entry.data["model"], lambda: async_get_clientsession(hass)
+        ),
         host,
         entry.data.get(CONF_NAME),  # Only found from discovery
     )
